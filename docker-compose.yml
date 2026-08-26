@@ -1,0 +1,61 @@
+# PERSON 6: DEVOPS, SANDBOX & SECURITY LEAD
+# 
+# TODOs for docker-compose.yml:
+# 1. Define all services: Frontend, Backend, Ollama, VectorDB, Sandbox.
+# 2. Configure internal Docker networks to ensure NO external internet access for the Workbench.
+# 3. Mount necessary GPU drivers for Ollama.
+
+version: '3.8'
+
+services:
+  # UI
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    networks:
+      - secure-internal
+
+  # API & Agent
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    networks:
+      - secure-internal
+    depends_on:
+      - ollama
+
+  # Local LLM Server
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - secure-internal
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Code Execution Sandbox (Isolated)
+  sandbox:
+    build: ./sandbox
+    networks:
+      secure-internal:
+        # Crucial for Person 6: Prevent this specific container from accessing external networks
+        # (The entire internal network should ideally be isolated as well)
+        aliases:
+          - sandbox
+
+volumes:
+  ollama_data:
+
+networks:
+  secure-internal:
+    internal: true # This makes the network fully air-gapped!
