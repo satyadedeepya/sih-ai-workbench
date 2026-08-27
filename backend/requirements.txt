@@ -12,3 +12,4 @@ easyocr
 python-docx
 python-pptx
 openpyxl
+httpx
