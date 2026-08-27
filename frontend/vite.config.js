@@ -1,0 +1,18 @@
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+// Person 2 (Backend): FastAPI is expected on :8000 in local dev.
+// This proxy means the frontend can call "/api/..." and Vite forwards
+// it to FastAPI, so no CORS headaches during the hackathon.
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5173,
+    proxy: {
+      "/api": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+    },
+  },
+});
