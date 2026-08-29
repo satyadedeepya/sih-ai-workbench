@@ -53,6 +53,49 @@ services:
         aliases:
           - sandbox
 
+    # Resource limits - prevent DoS attacks via CPU/memory/process exhaustion
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'              # Max 1 CPU core
+          memory: 512M             # Max 512MB RAM (hard limit, container killed if exceeded)
+          pids: 64                 # Max 64 processes (prevents fork bombs)
+        reservations:
+          cpus: '0.25'             # Guaranteed minimum 25% CPU
+          memory: 128M             # Guaranteed minimum 128MB RAM
+
+    # Security hardening
+    cap_drop:
+      - ALL                        # Drop all Linux capabilities (no raw packets, no chroot, no device creation)
+
+    security_opt:
+      - no-new-privileges:true     # Prevent privilege escalation via setuid/setgid
+
+    read_only: true                # Read-only root filesystem (prevents persistent malware, disk exhaustion)
+
+    # Writable tmpfs mounts (in-memory, size-limited, non-persistent)
+    tmpfs:
+      - /tmp:size=64M,mode=1777,exec    # System temp directory (world-writable with sticky bit)
+      - /home/sandboxuser/.cache:size=32M,mode=700  # Python cache directory
+
+    # Health check (enables dependency ordering and auto-restart on failure)
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    # Auto-restart on crash (unless manually stopped)
+    restart: unless-stopped
+
+    # Log rotation (prevents disk exhaustion via log spam)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"            # Max 10MB per log file
+        max-file: "3"              # Keep max 3 files (30MB total)
+
 volumes:
   ollama_data:
 
