@@ -330,6 +330,9 @@ def run_agent(prompt: str, model_name: str, active_files: list) -> str:
         if isinstance(result, str) and result.lower().startswith(("error", "failed")):
             return f"Agent execution failed at step 'generate_docx': {result}"
 
+    if not outputs and not docx_step:
+        return thought
+
     return "Agent execution completed. " + " | ".join(outputs) if outputs else "Agent execution completed."
 
 
