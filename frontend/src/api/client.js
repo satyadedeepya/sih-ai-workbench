@@ -315,7 +315,7 @@ import {
   DELIVERABLE_TEMPLATES,
 } from "./mockData.js";
 
-const USE_MOCK = true; // Person 1: flip to false once /api is live.
+const USE_MOCK = false; // Person 1: flip to false once /api is live.
 
 // ---- Task classifier -----------------------------------------------
 // Client-side STUB standing in for Person 3's real router

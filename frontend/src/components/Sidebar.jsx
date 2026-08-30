@@ -125,6 +125,7 @@ export default function Sidebar({ collapsed }) {
     <aside className="flex h-full w-72 shrink-0 flex-col border-r border-base-border bg-base-panel">
       <div className="p-3">
         <button
+          onClick={() => window.location.reload()}
           className="flex w-full items-center justify-center gap-2 rounded-lg border border-base-border bg-base-panel2 px-3 py-2 text-sm font-medium text-text-primary transition-colors duration-150 hover:border-primary/50 hover:bg-primary/10 hover:text-primary active:bg-primary/15"
         >
           <Plus size={15} /> New session
