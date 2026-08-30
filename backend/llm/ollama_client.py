@@ -36,7 +36,7 @@ import logging
 
 logger = logging.getLogger("ollama_client")
 
-OLLAMA_BASE_URL = "http://localhost:11434"
+OLLAMA_BASE_URL = "http://ollama:11434"
 DEFAULT_TIMEOUT = 120.0  # seconds; local inference can be slow on first load
 
 

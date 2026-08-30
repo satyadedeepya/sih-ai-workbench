@@ -31,7 +31,7 @@ async def chat_with_agent(req: ChatRequest):
     Handles user chat. Passes it to Person 4's Agent.
     """
     # For now, default to local-model. Person 3's router can be integrated deeper here.
-    model_used = "local-model" 
+    model_used = "llama3.2:3b" 
     
     # Pass the prompt and files to the Agent loop (Person 4)
     result_text = run_agent(req.message, model_used, req.active_files)
