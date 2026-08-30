@@ -1,41 +1,67 @@
+import os
+import shutil
 from fastapi import APIRouter, UploadFile, File
 from pydantic import BaseModel
 
-/**
- * PERSON 2: BACKEND API & INTEGRATION ENGINEER
- * 
- * TODOs for routes.py:
- * 1. Create `/chat` endpoint: Receives user prompt -> Calls Person 3's Task Classifier -> Calls Person 4's Agent -> Returns result.
- * 2. Create `/upload` endpoint: Receives files -> Saves to local temp dir -> Triggers Person 5's OCR/RAG ingestion.
- * 3. Work closely with Person 3 and Person 4 to integrate their modules here.
- */
+# Import teammate modules
+from llm.router import get_router_status
+from agent.planner import run_agent
+from vision.ocr import extract_text_from_document
 
 router = APIRouter()
+
+# Setup a temporary directory for file uploads
+UPLOAD_DIR = "temp_uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 class ChatRequest(BaseModel):
     message: str
     active_files: list[str] = []
 
+@router.get("/models")
+async def get_models():
+    """
+    Returns available models. Needed by Person 1's Frontend ModelRouter.
+    """
+    return get_router_status()
+
 @router.post("/chat")
 async def chat_with_agent(req: ChatRequest):
-    # TODO (Person 2): 
-    # 1. from llm.router import classify_and_route
-    # 2. model = classify_and_route(req.message)
-    # 3. from agent.planner import run_agent
-    # 4. result = run_agent(req.message, model, req.active_files)
+    """
+    Handles user chat. Passes it to Person 4's Agent.
+    """
+    # For now, default to local-model. Person 3's router can be integrated deeper here.
+    model_used = "local-model" 
     
-    # Dummy response for now
+    # Pass the prompt and files to the Agent loop (Person 4)
+    result_text = run_agent(req.message, model_used, req.active_files)
+    
     return {
         "status": "success",
-        "response": "This is a dummy response from the agent.",
-        "generated_files": []
+        "response": result_text,
+        "generated_files": [] # Agent will populate this if it creates DOCX/XLSX
     }
 
 @router.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
-    # TODO (Person 2 & Person 5):
-    # 1. Save file to disk securely
-    # 2. If PDF/Image, trigger Person 5's OCR pipeline
-    # 3. Add to Person 5's Vector DB (Chroma/FAISS)
+    """
+    Handles file upload, saves to disk securely, and extracts text using OCR (Person 5).
+    """
+    file_path = os.path.join(UPLOAD_DIR, file.filename)
     
-    return {"filename": file.filename, "status": "Uploaded and ingested locally"}
+    # Save the uploaded file locally
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    try:
+        # Pass the saved file to Person 5's Vision/OCR module
+        extracted_text = extract_text_from_document(file_path)
+    except Exception as e:
+        extracted_text = f"Error extracting text: {e}"
+    
+    return {
+        "filename": file.filename, 
+        "status": "Uploaded successfully",
+        # Return a snippet of extracted text just to prove OCR is working
+        "extracted_text": extracted_text[:200] + "..." if len(extracted_text) > 200 else extracted_text
+    }

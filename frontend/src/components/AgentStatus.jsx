@@ -63,7 +63,7 @@ export default function AgentStatus({ steps, runId }) {
 
   return (
     <div className="rounded-xl border border-base-border bg-base-panel2 p-3.5 shadow-panel">
-      <PanelLabel>AGENT ACTIVITY</PanelLabel>
+      <PanelLabel>Agent activity</PanelLabel>
       <ol className="flex flex-col gap-2">
         {steps.map((step, i) => {
           const state = stepStates[i] ?? "pending";
@@ -74,7 +74,7 @@ export default function AgentStatus({ steps, runId }) {
                   <CheckCircle2 size={15} className="text-secure" />
                 )}
                 {state === "running" && (
-                  <LoaderCircle size={15} className="animate-spin text-amber" />
+                  <LoaderCircle size={15} className="animate-spin text-primary" />
                 )}
                 {state === "failed" && <XCircle size={15} className="text-alert" />}
                 {state === "pending" && (

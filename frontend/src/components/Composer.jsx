@@ -36,7 +36,7 @@ export default function Composer({
   return (
     <div className="border-t border-base-border bg-base-bg p-4">
       <div className="mx-auto flex max-w-3xl flex-col gap-2">
-        <div className="flex items-end gap-2 rounded-xl border border-base-border bg-base-panel p-2 shadow-panel transition-colors duration-150 focus-within:border-wire/60">
+        <div className="flex items-end gap-2 rounded-2xl border border-base-border bg-base-panel p-2 shadow-panel transition-colors duration-150 focus-within:border-info/60">
           <FileUploader
             file={file}
             status={fileStatus}
@@ -61,7 +61,7 @@ export default function Composer({
             type="button"
             onClick={onSend}
             disabled={!canSend}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber text-base-bg transition-colors duration-150 hover:bg-amber/90 disabled:cursor-not-allowed disabled:bg-base-panel2 disabled:text-text-disabled"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-base-bg transition-colors duration-150 hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-base-panel2 disabled:text-text-disabled"
             aria-label="Send message"
           >
             {busy ? (
@@ -71,11 +71,11 @@ export default function Composer({
             )}
           </button>
         </div>
-        <p className="flex items-center justify-center gap-1 text-center font-mono text-3xs text-text-tertiary">
-          <kbd className="rounded border border-base-border px-1 py-0.5">Enter</kbd>
+        <p className="flex items-center justify-center gap-1 text-center text-3xs text-text-tertiary">
+          <kbd className="rounded border border-base-border px-1 py-0.5 font-mono">Enter</kbd>
           to send
           <span className="mx-1 text-base-border">·</span>
-          <kbd className="rounded border border-base-border px-1 py-0.5">Shift+Enter</kbd>
+          <kbd className="rounded border border-base-border px-1 py-0.5 font-mono">Shift+Enter</kbd>
           for newline
           <span className="mx-1 text-base-border">·</span>
           Runs entirely on-premise, zero external requests
@@ -84,3 +84,4 @@ export default function Composer({
     </div>
   );
 }
+

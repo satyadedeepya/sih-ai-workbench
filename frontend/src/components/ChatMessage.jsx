@@ -53,7 +53,7 @@ export default function ChatMessage({ message, onRetry }) {
       <div
         className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border ${
           isUser
-            ? "border-wire/40 bg-wire/10 text-wire"
+            ? "border-info/40 bg-info/10 text-info"
             : "border-secure/40 bg-secure/10 text-secure"
         }`}
       >
@@ -81,7 +81,7 @@ export default function ChatMessage({ message, onRetry }) {
           </div>
         ) : (
           <div
-            className={`rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
+            className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
               isUser
                 ? "bg-base-panel3 text-text-primary"
                 : "border border-base-border bg-base-panel text-text-primary shadow-panel"
@@ -103,8 +103,9 @@ export default function ChatMessage({ message, onRetry }) {
 
         {message.steps && <div className="w-full min-w-[16rem]"><AgentStatus steps={message.steps} runId={message.runId} /></div>}
 
-        <span className="px-1 font-mono text-3xs text-text-tertiary">{message.time}</span>
+        <span className="px-1 text-3xs text-text-tertiary">{message.time}</span>
       </div>
     </div>
   );
 }
+

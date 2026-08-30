@@ -12,4 +12,5 @@ easyocr
 python-docx
 python-pptx
 openpyxl
+pymupdf
 httpx
