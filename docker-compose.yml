@@ -8,77 +8,57 @@
 version: '3.8'
 
 services:
-  # UI
   frontend:
     build: ./frontend
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     networks:
-      - secure-internal
+      - host-network
 
-  # API & Agent
   backend:
     build: ./backend
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8001:8000"
     networks:
+      - host-network
       - secure-internal
     depends_on:
       - ollama
 
-  # Local LLM Server
   ollama:
     image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
     networks:
       - secure-internal
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
 
-  # Code Execution Sandbox (Isolated)
   sandbox:
     build: ./sandbox
     networks:
-      secure-internal:
-        # Crucial for Person 6: Prevent this specific container from accessing external networks
-        # (The entire internal network should ideally be isolated as well)
-        aliases:
-          - sandbox
+      - secure-internal
 
-    # Resource limits - prevent DoS attacks via CPU/memory/process exhaustion
     deploy:
       resources:
         limits:
-          cpus: '1.0'              # Max 1 CPU core
-          memory: 512M             # Max 512MB RAM (hard limit, container killed if exceeded)
-          pids: 64                 # Max 64 processes (prevents fork bombs)
+          cpus: '1.0'
+          memory: 512M
+          pids: 64
         reservations:
-          cpus: '0.25'             # Guaranteed minimum 25% CPU
-          memory: 128M             # Guaranteed minimum 128MB RAM
+          cpus: '0.25'
+          memory: 128M
 
-    # Security hardening
     cap_drop:
-      - ALL                        # Drop all Linux capabilities (no raw packets, no chroot, no device creation)
+      - ALL
 
     security_opt:
-      - no-new-privileges:true     # Prevent privilege escalation via setuid/setgid
+      - no-new-privileges:true
 
-    read_only: true                # Read-only root filesystem (prevents persistent malware, disk exhaustion)
+    read_only: true
 
-    # Writable tmpfs mounts (in-memory, size-limited, non-persistent)
     tmpfs:
-      - /tmp:size=64M,mode=1777,exec    # System temp directory (world-writable with sticky bit)
-      - /home/sandboxuser/.cache:size=32M,mode=700  # Python cache directory
+      - /tmp:size=64M,mode=1777,exec
+      - /home/sandboxuser/.cache:size=32M,mode=700
 
-    # Health check (enables dependency ordering and auto-restart on failure)
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health').read()"]
       interval: 30s
@@ -86,19 +66,20 @@ services:
       retries: 3
       start_period: 10s
 
-    # Auto-restart on crash (unless manually stopped)
     restart: unless-stopped
 
-    # Log rotation (prevents disk exhaustion via log spam)
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"            # Max 10MB per log file
-        max-file: "3"              # Keep max 3 files (30MB total)
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   ollama_data:
 
 networks:
+  host-network:
+    driver: bridge
+
   secure-internal:
-    internal: true # This makes the network fully air-gapped!
+    internal: true
