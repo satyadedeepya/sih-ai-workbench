@@ -1,11 +1,14 @@
-import { PanelLeftClose, PanelLeftOpen, Gauge } from "lucide-react";
+
+
+import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Sparkles } from "lucide-react";
 import NetworkMonitor from "./NetworkMonitor.jsx";
 
 // The application's top bar. Deliberately restrained: one wordmark, one
-// status cluster (NetworkMonitor), one sidebar toggle. Everything here
-// is a structural landmark a returning user should be able to find
-// without looking — nothing here should change position or size.
-export default function Header({ collapsed, onToggleSidebar }) {
+// status cluster (NetworkMonitor), one sidebar toggle on each side.
+// Everything here is a structural landmark a returning user should be
+// able to find without looking — nothing here should change position
+// or size.
+export default function Header({ collapsed, onToggleSidebar, rightCollapsed, onToggleRightSidebar }) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-base-border bg-base-panel px-4">
       <div className="flex items-center gap-3">
@@ -17,23 +20,24 @@ export default function Header({ collapsed, onToggleSidebar }) {
         >
           {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
         </button>
-        <div className="flex items-center gap-2.5">
-          <div className="relative flex h-7 w-7 items-center justify-center overflow-hidden rounded-lg bg-amber/15 text-amber">
-            <Gauge size={16} strokeWidth={2.25} />
-            <span className="pointer-events-none absolute inset-x-0 h-px animate-scan bg-amber/60" />
-          </div>
-          <div className="leading-tight">
-            <h1 className="font-mono text-sm font-semibold tracking-wide text-text-primary">
-              MRPL <span className="text-text-tertiary">//</span> SOVEREIGN WORKBENCH
-            </h1>
-            <p className="font-mono text-3xs text-text-tertiary">
-              On-premise agentic AI &middot; SIH 26117
-            </p>
-          </div>
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary">
+          <Sparkles size={15} strokeWidth={2.25} />
         </div>
       </div>
 
-      <NetworkMonitor />
+      <div className="flex items-center gap-3">
+        <NetworkMonitor />
+        {onToggleRightSidebar && (
+          <button
+            onClick={onToggleRightSidebar}
+            className="hidden rounded-md p-1 text-text-secondary transition-colors duration-150 hover:bg-base-panel2 hover:text-text-primary lg:block"
+            aria-label={rightCollapsed ? "Show panel" : "Hide panel"}
+            title={rightCollapsed ? "Show panel" : "Hide panel"}
+          >
+            {rightCollapsed ? <PanelRightOpen size={18} /> : <PanelRightClose size={18} />}
+          </button>
+        )}
+      </div>
     </header>
   );
 }
