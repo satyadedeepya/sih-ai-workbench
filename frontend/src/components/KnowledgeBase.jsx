@@ -20,7 +20,7 @@ export default function KnowledgeBase() {
   return (
     <div className="flex min-h-0 flex-col">
       <div className="px-1">
-        <PanelLabel icon={Database}>LOCAL KNOWLEDGE BASE</PanelLabel>
+        <PanelLabel icon={Database}>Knowledge base</PanelLabel>
       </div>
 
       {docs === null && (
@@ -51,7 +51,7 @@ export default function KnowledgeBase() {
             <span className="flex min-w-0 items-center gap-2">
               <FileStack
                 size={12}
-                className="shrink-0 text-text-tertiary group-hover:text-wire"
+                className="shrink-0 text-text-tertiary group-hover:text-info"
               />
               <span className="truncate text-2xs text-text-secondary group-hover:text-text-primary">
                 {doc.name}

@@ -4,63 +4,96 @@
 //   theme: {
 //     extend: {
 //       colors: {
-//         // ---- Design tokens ----
-//         // Subject: an industrial control-room / SCADA panel, not a chat app.
+//         // ---- Design tokens -------------------------------------------------
+//         // Mood: premium enterprise AI assistant (Linear / Vercel / Claude
+//         // territory) — calm neutral surfaces, one confident accent, status
+//         // colors used sparingly and only where they mean something. No
+//         // "instrumentation" color, no terminal green-on-black default.
 //         base: {
-//           bg: "#0A0E13",      // main background, near-black blue-slate
-//           panel: "#11161D",   // raised panel surface
-//           panel2: "#161C24",  // slightly lighter panel (nested surfaces)
-//           border: "#232B34",  // hairline borders / dividers
+//           bg: "#0E0E12",        // app background
+//           panel: "#17171D",     // raised panel surface (cards, header, sidebar)
+//           panel2: "#1E1E25",    // nested surface (inputs, hovered rows)
+//           panel3: "#26262F",    // active/selected surface
+//           border: "#292933",    // default hairline border
+//           borderHi: "#37373F",  // emphasized border (hover/focus adjacent)
 //         },
 //         text: {
-//           primary: "#EDF1F5",
-//           secondary: "#8B96A3",
-//           tertiary: "#586170",
+//           primary: "#F4F4F6",
+//           secondary: "#A3A3AE",
+//           tertiary: "#68686F",
+//           disabled: "#45454D",
 //         },
-//         amber: {
-//           DEFAULT: "#F0A020", // primary accent — instrumentation amber
-//           dim: "#8A5D18",
+//         // Single confident accent for anything "active/selected/primary
+//         // action" — replaces the old instrumentation-amber.
+//         primary: {
+//           DEFAULT: "#7C6FEB",
+//           soft: "#211E38",
+//         },
+//         // Secondary accent for links/info — cooler and quieter than primary.
+//         info: {
+//           DEFAULT: "#5B8DEF",
+//           soft: "#1B2436",
 //         },
 //         secure: {
-//           DEFAULT: "#35D399", // "air-gapped / local / secure" green
-//           dim: "#1C7A56",
+//           DEFAULT: "#34C795",
+//           soft: "#152C22",
 //         },
 //         alert: {
-//           DEFAULT: "#E2544B", // reserved for critical findings only
+//           DEFAULT: "#F0645C",
+//           soft: "#33201F",
 //         },
-//         wire: {
-//           DEFAULT: "#3E9DD8", // cool signal-blue for links/data flow
+//         warn: {
+//           DEFAULT: "#E3B341",
+//           soft: "#33291A",
 //         },
 //       },
 //       fontFamily: {
-//         mono: ["'JetBrains Mono'", "ui-monospace", "SFMono-Regular", "monospace"],
+//         // Sans is now the voice of the whole product, including labels.
+//         // Mono is reserved for genuinely technical content: code, the
+//         // system log, and numeric telemetry — not headings or nav.
 //         sans: ["'Inter'", "ui-sans-serif", "system-ui", "sans-serif"],
+//         mono: ["'JetBrains Mono'", "ui-monospace", "SFMono-Regular", "monospace"],
 //       },
-//       backgroundImage: {
-//         blueprint:
-//           "linear-gradient(rgba(62,157,216,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(62,157,216,0.06) 1px, transparent 1px)",
+//       fontSize: {
+//         "2xs": ["0.6875rem", { lineHeight: "1rem" }],
+//         "3xs": ["0.625rem", { lineHeight: "0.875rem" }],
 //       },
-//       backgroundSize: {
-//         grid: "24px 24px",
+//       borderRadius: {
+//         xl: "0.75rem",
+//         "2xl": "1rem",
+//       },
+//       boxShadow: {
+//         panel: "0 1px 2px 0 rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.02) inset",
+//         elevated: "0 10px 28px -10px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03) inset",
+//         focus: "0 0 0 3px rgba(124,111,235,0.25)",
 //       },
 //       keyframes: {
 //         blink: {
 //           "0%, 100%": { opacity: 1 },
 //           "50%": { opacity: 0.25 },
 //         },
-//         scan: {
-//           "0%": { transform: "translateY(-100%)" },
-//           "100%": { transform: "translateY(100%)" },
+//         "fade-up": {
+//           "0%": { opacity: 0, transform: "translateY(4px)" },
+//           "100%": { opacity: 1, transform: "translateY(0)" },
+//         },
+//         "fade-in": {
+//           "0%": { opacity: 0 },
+//           "100%": { opacity: 1 },
 //         },
 //       },
 //       animation: {
-//         blink: "blink 1.6s ease-in-out infinite",
-//         scan: "scan 3s linear infinite",
+//         blink: "blink 1.8s ease-in-out infinite",
+//         "fade-up": "fade-up 220ms cubic-bezier(0.16,1,0.3,1) both",
+//         "fade-in": "fade-in 200ms ease-out both",
+//       },
+//       transitionDuration: {
+//         250: "250ms",
 //       },
 //     },
 //   },
 //   plugins: [],
 // };
+
 
 
 /** @type {import('tailwindcss').Config} */
@@ -70,47 +103,60 @@ export default {
     extend: {
       colors: {
         // ---- Design tokens -------------------------------------------------
-        // Subject: an industrial control-room panel re-imagined as premium
-        // enterprise software (Linear/Vercel-grade execution), not a chat
-        // toy and not a cyberpunk dashboard.
+        // Mood: premium enterprise AI assistant (Linear / Vercel / Claude
+        // territory) — calm neutral surfaces, one confident accent, status
+        // colors used sparingly and only where they mean something. No
+        // "instrumentation" color, no terminal green-on-black default.
         base: {
-          bg: "#0B0F14",       // app background
-          panel: "#12171F",    // raised panel surface (cards, header, sidebar)
-          panel2: "#181F29",   // nested surface (inputs, hovered rows)
-          panel3: "#1E2732",   // active/selected surface
-          border: "#232C37",   // default hairline border
-          borderHi: "#303B48", // emphasized border (hover/focus adjacent)
+          bg: "#0E0E12",        // app background
+          panel: "#17171D",     // raised panel surface (cards, header, sidebar)
+          panel2: "#1E1E25",    // nested surface (inputs, hovered rows)
+          panel3: "#26262F",    // active/selected surface
+          border: "#292933",    // default hairline border
+          borderHi: "#37373F",  // emphasized border (hover/focus adjacent)
         },
         text: {
-          primary: "#EEF2F6",
-          secondary: "#94A1B0",
-          tertiary: "#5C6876",
-          disabled: "#3D4653",
+          primary: "#F4F4F6",
+          secondary: "#A3A3AE",
+          tertiary: "#68686F",
+          disabled: "#45454D",
         },
-        amber: {
-          DEFAULT: "#E8A23B",
-          soft: "#3A2E1A",
+        // Single confident accent for anything "active/selected/primary
+        // action" — replaces the old instrumentation-amber.
+        primary: {
+          DEFAULT: "#7C6FEB",
+          soft: "#211E38",
+        },
+        // Secondary accent for links/info — cooler and quieter than primary.
+        info: {
+          DEFAULT: "#5B8DEF",
+          soft: "#1B2436",
         },
         secure: {
-          DEFAULT: "#33C98C",
-          soft: "#173328",
+          DEFAULT: "#34C795",
+          soft: "#152C22",
         },
         alert: {
-          DEFAULT: "#E5594F",
-          soft: "#3A1F1D",
+          DEFAULT: "#F0645C",
+          soft: "#33201F",
         },
         warn: {
-          DEFAULT: "#E0B93E",
-          soft: "#3A331A",
+          DEFAULT: "#E3B341",
+          soft: "#33291A",
         },
-        wire: {
-          DEFAULT: "#4FA3DE",
-          soft: "#1A2A38",
+        // Industrial gold — used sparingly for MRPL/industrial identity
+        // accents (wordmark, a few highlight touches), never for status.
+        gold: {
+          DEFAULT: "#D4A857",
+          soft: "#332B18",
         },
       },
       fontFamily: {
-        mono: ["'JetBrains Mono'", "ui-monospace", "SFMono-Regular", "monospace"],
+        // Sans is now the voice of the whole product, including labels.
+        // Mono is reserved for genuinely technical content: code, the
+        // system log, and numeric telemetry — not headings or nav.
         sans: ["'Inter'", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["'JetBrains Mono'", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       fontSize: {
         "2xs": ["0.6875rem", { lineHeight: "1rem" }],
@@ -118,27 +164,17 @@ export default {
       },
       borderRadius: {
         xl: "0.75rem",
+        "2xl": "1rem",
       },
       boxShadow: {
-        panel: "0 1px 2px 0 rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.02) inset",
-        elevated: "0 8px 24px -8px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.03) inset",
-        focus: "0 0 0 3px rgba(79,163,222,0.25)",
-      },
-      backgroundImage: {
-        blueprint:
-          "linear-gradient(rgba(79,163,222,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(79,163,222,0.05) 1px, transparent 1px)",
-      },
-      backgroundSize: {
-        grid: "28px 28px",
+        panel: "0 1px 2px 0 rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.02) inset",
+        elevated: "0 10px 28px -10px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03) inset",
+        focus: "0 0 0 3px rgba(124,111,235,0.25)",
       },
       keyframes: {
         blink: {
           "0%, 100%": { opacity: 1 },
           "50%": { opacity: 0.25 },
-        },
-        scan: {
-          "0%": { transform: "translateY(-100%)" },
-          "100%": { transform: "translateY(100%)" },
         },
         "fade-up": {
           "0%": { opacity: 0, transform: "translateY(4px)" },
@@ -148,17 +184,11 @@ export default {
           "0%": { opacity: 0 },
           "100%": { opacity: 1 },
         },
-        shimmer: {
-          "0%": { backgroundPosition: "-200% 0" },
-          "100%": { backgroundPosition: "200% 0" },
-        },
       },
       animation: {
         blink: "blink 1.8s ease-in-out infinite",
-        scan: "scan 3.5s linear infinite",
         "fade-up": "fade-up 220ms cubic-bezier(0.16,1,0.3,1) both",
         "fade-in": "fade-in 200ms ease-out both",
-        shimmer: "shimmer 1.8s linear infinite",
       },
       transitionDuration: {
         250: "250ms",
