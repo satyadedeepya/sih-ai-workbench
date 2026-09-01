@@ -8,9 +8,10 @@ langchain_community
 langchain_core
 chromadb
 faiss-cpu
-easyocr
 python-docx
 python-pptx
 openpyxl
 pymupdf
 httpx
+pypdf
+sentence-transformers

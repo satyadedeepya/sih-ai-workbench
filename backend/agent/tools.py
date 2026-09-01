@@ -1,131 +1,259 @@
-# import os
-
-# /**
-#  * PERSON 4: AGENT & TOOLS ENGINEER
-#  * 
-#  * TODOs for tools.py:
-#  * 1. Implement Python tools that the LLM can call.
-#  * 2. read_file(filepath): Reads text/csv files.
-#  * 3. generate_docx(content, filename): Creates real Word documents (use python-docx).
-#  * 4. run_code_in_sandbox(code): Sends code to Person 6's Docker sandbox for execution.
-#  */
-
-# def read_file(filepath: str) -> str:
-#     """Reads a local file."""
-#     if os.path.exists(filepath):
-#         with open(filepath, 'r') as f:
-#             return f.read()
-#     return "File not found."
-
-# def search_kb(query: str) -> str:
-#     """Calls Person 5's RAG system to search local knowledge base."""
-#     # from rag.vector_store import search
-#     # return search(query)
-#     return "Local SOP retrieved: Follow safety protocol 42."
-
-# def generate_docx(content: str, filename: str) -> str:
-#     """Generates a Word Document."""
-#     # TODO: Use python-docx
-#     return f"Created {filename} successfully."
-
-# def run_code_in_sandbox(code: str) -> str:
-#     """Executes code securely in the Docker sandbox."""
-#     # TODO: Connect to sandbox API/container
-#     return "Code executed successfully. Output: ..."
-
-
-
-
-
-
 import os
 import subprocess
 import sys
 import tempfile
 
-"""
-PERSON 4: AGENT & TOOLS ENGINEER
-
-TODOs for tools.py:
-1. Implement Python tools that the LLM can call.
-2. read_file(filepath): Reads text/csv files.
-3. generate_docx(content, filename): Creates real Word documents (use python-docx).
-4. run_code_in_sandbox(code): Sends code to Person 6's Docker sandbox for execution.
-"""
-
 
 def read_file(filepath: str) -> str:
-    """Reads a local file."""
-    if os.path.exists(filepath):
-        try:
-            with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
-                return f.read()
-        except Exception as e:
-            return f"Error reading file: {e}"
-    return "File not found."
+    """
+    Read an uploaded file.
+
+    PDF files use the local PDF extraction pipeline.
+    Text-based files are read directly.
+    """
+
+    if not filepath:
+        return "Error: No filepath provided."
+
+    if not os.path.exists(filepath):
+        return f"File not found: {filepath}"
+
+    try:
+        extension = os.path.splitext(filepath)[1].lower()
+
+        if extension == ".pdf":
+            from vision.ocr import extract_text_from_document
+
+            text = extract_text_from_document(filepath)
+
+            if not text or not text.strip():
+                return "Error: Could not extract any text from the PDF."
+
+            return text.strip()
+
+        with open(
+            filepath,
+            "r",
+            encoding="utf-8",
+            errors="ignore",
+        ) as f:
+            content = f.read()
+
+        if not content.strip():
+            return "The file is empty."
+
+        return content
+
+    except Exception as e:
+        return f"Error reading file '{filepath}': {e}"
 
 
 def search_kb(query: str) -> str:
-    """Calls Person 5's RAG system to search local knowledge base."""
-    # TODO: replace with the real call once Person 5's RAG is ready:
-    # from rag.vector_store import search
-    # return search(query)
-    return "Local SOP retrieved: Follow safety protocol 42."
+    """
+    Search the organization's local knowledge base using FAISS.
+    """
+
+    if not query or not query.strip():
+        return "Error: Empty knowledge-base query."
+
+    try:
+        from rag.vector_store import search
+
+        results = search(
+            query,
+            top_k=5,
+        )
+
+        if not results:
+            return (
+                "No relevant information was found in the "
+                "organization knowledge base."
+            )
+
+        formatted_results = []
+
+        for result in results:
+            source = result.get(
+                "source",
+                "Unknown document",
+            )
+
+            text = result.get(
+                "text",
+                "",
+            )
+
+            score = result.get(
+                "score",
+                0,
+            )
+
+            formatted_results.append(
+                f"Source: {source}\n"
+                f"Relevance: {score:.3f}\n"
+                f"Content:\n{text}"
+            )
+
+        return "\n\n---\n\n".join(
+            formatted_results
+        )
+
+    except Exception as e:
+        return (
+            f"Error searching local knowledge base: {e}"
+        )
 
 
-def generate_docx(content: str, filename: str) -> str:
-    """Generates a Word Document."""
+def generate_docx(
+    content: str,
+    filename: str,
+) -> str:
+    """
+    Generate a Word document using python-docx.
+    """
+
     try:
         from docx import Document
 
-        doc = Document()
-        # Split content into paragraphs on blank lines so multi-section
-        # text (e.g. "Findings\n\n...\n\nRecommendation\n\n...") reads cleanly.
-        for paragraph in content.split("\n\n"):
-            if paragraph.strip():
-                doc.add_paragraph(paragraph.strip())
+    except ImportError:
+        return (
+            "Failed to create document: "
+            "python-docx is not installed."
+        )
 
-        doc.save(filename)
-        return f"Created {filename} successfully."
+    try:
+        if not filename:
+            filename = "Generated_Document.docx"
+
+        if not filename.lower().endswith(".docx"):
+            filename += ".docx"
+
+        directory = os.path.dirname(filename)
+
+        if directory:
+            os.makedirs(
+                directory,
+                exist_ok=True,
+            )
+
+        document = Document()
+
+        if content and content.strip():
+
+            for paragraph in content.split("\n\n"):
+
+                paragraph = paragraph.strip()
+
+                if paragraph:
+                    document.add_paragraph(
+                        paragraph
+                    )
+
+        else:
+            document.add_paragraph(
+                "No document content was generated."
+            )
+
+        document.save(filename)
+
+        return (
+            f"Created {filename} successfully."
+        )
 
     except Exception as e:
-        return f"Failed to create {filename}: {e}"
+        return (
+            f"Failed to create {filename}: {e}"
+        )
 
 
-def run_code_in_sandbox(code: str) -> str:
-    """Executes code securely in the Docker sandbox."""
-    # TODO(Person 6): swap this local subprocess call for a real request
-    # to the Docker sandbox container once it's ready, e.g.:
-    # import requests
-    # resp = requests.post("http://sandbox:8080/run", json={"code": code}, timeout=10)
-    # return resp.json()["output"]
-    #
-    # Until then, this runs the code locally with a timeout so the agent
-    # loop can be built and demoed without waiting on the sandbox service.
+def run_code_in_sandbox(
+    code: str,
+) -> str:
+    """
+    Execute Python code.
+
+    This is currently a local fallback.
+    The Docker sandbox can be connected later.
+    """
+
+    if not code or not code.strip():
+        return (
+            "Code execution failed: "
+            "No code provided."
+        )
+
     script_path = None
+
     try:
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
+
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".py",
+            delete=False,
+            encoding="utf-8",
+        ) as f:
+
             f.write(code)
+
             script_path = f.name
 
         result = subprocess.run(
-            [sys.executable, script_path],
+            [
+                sys.executable,
+                script_path,
+            ],
             capture_output=True,
             text=True,
             timeout=10,
         )
 
         if result.returncode == 0:
-            return f"Code executed successfully. Output: {result.stdout.strip()}"
-        return f"Code execution failed (exit {result.returncode}). Error: {result.stderr.strip()}"
+
+            output = result.stdout.strip()
+
+            if not output:
+                output = "(No output)"
+
+            return (
+                "Code executed successfully.\n"
+                f"Output:\n{output}"
+            )
+
+        error = result.stderr.strip()
+
+        if not error:
+            error = (
+                "Unknown execution error."
+            )
+
+        return (
+            f"Code execution failed "
+            f"(exit {result.returncode}).\n"
+            f"Error:\n{error}"
+        )
 
     except subprocess.TimeoutExpired:
-        return "Code execution timed out after 10 seconds."
+
+        return (
+            "Code execution timed out "
+            "after 10 seconds."
+        )
+
     except Exception as e:
-        return f"Sandbox execution error: {e}"
+
+        return (
+            f"Sandbox execution error: {e}"
+        )
+
     finally:
-        if script_path:
+
+        if (
+            script_path
+            and os.path.exists(script_path)
+        ):
+
             try:
                 os.unlink(script_path)
+
             except Exception:
                 pass

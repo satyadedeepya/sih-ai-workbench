@@ -31,6 +31,7 @@ services:
       - ollama_data:/root/.ollama
     networks:
       - secure-internal
+      - ollama-download
 
   sandbox:
     build: ./sandbox
@@ -82,4 +83,8 @@ networks:
     driver: bridge
 
   secure-internal:
+    driver: bridge
     internal: true
+
+  ollama-download:
+    driver: bridge

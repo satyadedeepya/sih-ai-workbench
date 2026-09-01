@@ -1,62 +1,20 @@
-# /**
-#  * PERSON 4: AGENT & TOOLS ENGINEER
-#  * 
-#  * TODOs for planner.py:
-#  * 1. Implement the Agent Loop: Think -> Act -> Observe.
-#  * 2. Given a prompt, ask the LLM to create a "Plan".
-#  * 3. Execute the steps in the plan by calling the appropriate local tools (from tools.py).
-#  * 4. Iterate until the goal is achieved, then format the final output (e.g. generate a DOCX).
-#  */
-
-# from llm.ollama_client import generate_completion
-# from agent.tools import read_file, search_kb, generate_docx
-
-# def run_agent(prompt: str, model_name: str, active_files: list) -> str:
-#     """
-#     The core agent execution loop.
-#     """
-#     print(f"--- Starting Agent Execution using {model_name} ---")
-    
-#     # Step 1: Create Plan
-#     plan_prompt = f"Create a step-by-step plan to solve this task using available tools: {prompt}"
-#     # plan = generate_completion(model_name, plan_prompt)
-    
-#     # Step 2: Execute Plan (Pseudo-code)
-#     # for step in plan:
-#     #     if step requires search: search_kb()
-#     #     if step requires file generation: generate_docx()
-    
-#     return "Agent execution completed. Files generated (if applicable)."
-
-
-
-
-
-
-
-
-
-
-"""
-PERSON 4: AGENT & TOOLS ENGINEER
-
-TODOs for planner.py:
-1. Implement the Agent Loop: Think -> Act -> Observe.
-2. Given a prompt, ask the LLM to create a "Plan".
-3. Execute the steps in the plan by calling the appropriate local tools (from tools.py).
-4. Iterate until the goal is achieved, then format the final output (e.g. generate a DOCX).
-"""
-
-import json
+﻿import json
 import re
+import json
 
 try:
     from llm.ollama_client import OllamaClient
     _ollama_client = OllamaClient()
 except Exception:
-    _ollama_client = None  # Person 3's module not importable yet — fall back to mock
+    _ollama_client = None
 
-from agent.tools import read_file, search_kb, generate_docx, run_code_in_sandbox
+from agent.tools import (
+    read_file,
+    search_kb,
+    generate_docx,
+    run_code_in_sandbox,
+)
+
 
 TOOL_FUNCTIONS = {
     "read_file": read_file,
@@ -65,281 +23,645 @@ TOOL_FUNCTIONS = {
     "run_code_in_sandbox": run_code_in_sandbox,
 }
 
-# Small local models are inconsistent about argument names.
-# This maps common variations the model might use to the actual
-# parameter name each tool function expects.
+
 ARG_ALIASES = {
-    "read_file": {"filename": "filepath", "file_path": "filepath", "path": "filepath"},
-    "generate_docx": {"filepath": "filename", "output_path": "filename", "text": "content"},
-    "search_kb": {"search_query": "query", "q": "query"},
-    "run_code_in_sandbox": {"script": "code", "python_code": "code"},
+    "read_file": {
+        "filename": "filepath",
+        "file_path": "filepath",
+        "path": "filepath",
+    },
+    "generate_docx": {
+        "filepath": "filename",
+        "output_path": "filename",
+        "text": "content",
+    },
+    "search_kb": {
+        "search_query": "query",
+        "q": "query",
+    },
+    "run_code_in_sandbox": {
+        "script": "code",
+        "python_code": "code",
+    },
 }
 
 
 def _normalize_args(tool_name: str, args: dict) -> dict:
-    """Rename any argument keys the model got 'close enough' on."""
     aliases = ARG_ALIASES.get(tool_name, {})
     normalized = {}
+
+    if not isinstance(args, dict):
+        return normalized
+
     for key, value in args.items():
         real_key = aliases.get(key, key)
         normalized[real_key] = value
+
     return normalized
 
 
 def _extract_json(text: str) -> dict:
-    """
-    Small local models sometimes wrap JSON in extra text or code fences.
-    This pulls out the first {...} block and parses it.
-    """
     text = text.strip()
-    text = re.sub(r"^```(?:json)?", "", text)
-    text = re.sub(r"```$", "", text).strip()
 
-    match = re.search(r"\{.*\}", text, re.DOTALL)
+    text = re.sub(
+        r"^```(?:json)?",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    text = re.sub(
+        r"```$",
+        "",
+        text,
+    ).strip()
+
+    match = re.search(
+        r"\{.*\}",
+        text,
+        re.DOTALL,
+    )
+
     if not match:
-        raise ValueError("No JSON object found in model output")
+        raise ValueError(
+            "No JSON object found in model output"
+        )
+
     return json.loads(match.group(0))
 
 
-def _mock_plan(prompt: str) -> dict:
-    """Scripted fallback plan, used only when Ollama is unavailable or returns bad output."""
-    if "inspection" in prompt.lower() or "approval note" in prompt.lower():
-        return {
-            "thought": "Document analysis task: read report, search SOP, draft approval note.",
-            "plan": [
-                {"tool": "read_file", "args": {"filepath": "sample_report.txt"}},
-                {"tool": "search_kb", "args": {"query": "inspection findings SOP"}},
-                {"tool": "generate_docx", "args": {"content": "", "filename": "Approval_Note.docx"}},
-            ],
-        }
-    if "code" in prompt.lower() or "python" in prompt.lower():
-        return {
-            "thought": "Coding task: generate and run a short script.",
-            "plan": [
-                {"tool": "run_code_in_sandbox", "args": {"code": "print('hello from the sandbox')"}},
-            ],
-        }
-    return {"thought": "Unrecognized task type.", "plan": []}
+def _ask_llm(prompt: str, model_name: str) -> str:
+    if _ollama_client is None:
+        raise RuntimeError(
+            "Ollama client is not available"
+        )
 
+    if not _ollama_client.is_available():
+        raise RuntimeError(
+            "Ollama is not available"
+        )
 
-def _get_plan(prompt: str, model_name: str, active_files: list) -> dict:
-    """Ask Ollama for a JSON plan; fall back to the mock plan on any failure."""
-
-    files_note = (
-        f"Available files the user uploaded: {active_files}. "
-        "You MUST use these exact filenames if reading a file — never invent a filename."
-        if active_files else
-        "No files were uploaded for this task."
+    result = _ollama_client.generate(
+        model_name,
+        prompt,
     )
 
-    plan_prompt = f"""You are an agent planner for an industrial AI workbench. Given the task below, return ONLY a JSON object with keys 'thought' (string) and 'plan' (a list of steps).
+    return result["response"].strip()
 
-Each step is: {{"tool": "<tool name>", "args": {{...}}}}
 
-Available tools:
-- read_file(filepath): reads an existing text file. Use ONLY for reading uploaded documents.
-- search_kb(query): searches internal SOPs/manuals for relevant information.
-- generate_docx(content, filename): creates a Word document. Leave content as an empty string — it will be filled in automatically after gathering information.
-- run_code_in_sandbox(code): writes and executes a Python script.
+def _read_uploaded_files(active_files: list) -> list:
+    """
+    Read all files uploaded with the current request.
 
-{files_note}
+    This is intentionally deterministic.
+    We do NOT ask the LLM to decide whether to read
+    the uploaded file.
+    """
 
-STRICT RULES — follow these exactly, do not skip steps:
-1. If files were uploaded (see above), you MUST include a read_file step for EVERY uploaded file, using its exact filename.
-2. If the task asks for a report, approval note, summary document, or anything to be written/prepared/drafted, you MUST include exactly one generate_docx step as the LAST step in the plan.
-3. If the task is about writing or running code (not documents), use run_code_in_sandbox instead — do not include generate_docx in that case.
-4. search_kb is optional — only include it if the task mentions checking SOPs, manuals, or guidelines.
+    gathered = []
 
-Example — task "analyze inspection_report.txt and prepare an approval note", with file inspection_report.txt available:
-{{"thought": "Document task: must read the file then generate a docx.", "plan": [
-    {{"tool": "read_file", "args": {{"filepath": "inspection_report.txt"}}}},
-    {{"tool": "generate_docx", "args": {{"content": "", "filename": "Approval_Note.docx"}}}}
-]}}
+    for filepath in active_files:
 
-Example — task "write and run a python script to print numbers 1 to 5":
-{{"thought": "This is a coding task.", "plan": [{{"tool": "run_code_in_sandbox", "args": {{"code": "for i in range(1,6): print(i)"}}}}]}}
+        if not filepath:
+            continue
 
-Task: {prompt}
+        print(
+            f"  -> Reading uploaded file: {filepath}"
+        )
 
-Respond with JSON only, no other text, no markdown formatting."""
-
-    if _ollama_client is not None and _ollama_client.is_available():
         try:
-            result = _ollama_client.generate(model_name, plan_prompt)
-            raw_text = result["response"]
-            return _extract_json(raw_text)
+            result = read_file(filepath)
+
         except Exception as e:
-            print(f"[planner] Ollama call failed ({e}), falling back to mock plan")
-    else:
-        print("[planner] Ollama not available, using mock plan")
+            result = (
+                f"Error reading uploaded file: {e}"
+            )
 
-    return _mock_plan(prompt)
+        if result:
+            gathered.append(
+                f"FILE: {filepath}\n\n{result}"
+            )
+
+    return gathered
 
 
-def _synthesize_document_content(original_prompt: str, gathered_info: list, model_name: str) -> str:
-    """
-    Second LLM call: given everything the agent has read/searched so far,
-    write the actual document body. This is what makes the output real
-    instead of a generic placeholder — the model has to use the gathered
-    facts, not guess.
-    """
-    context = "\n\n".join(gathered_info) if gathered_info else "(no information was gathered)"
+def _synthesize_file_answer(
+    original_prompt: str,
+    gathered_info: list,
+    model_name: str,
+) -> str:
 
-    synth_prompt = f"""You are drafting the body text of a Word document for an industrial approval note.
+    if not gathered_info:
+        return (
+            "I could not read the uploaded file."
+        )
 
-User's request: {original_prompt}
+    context = "\n\n".join(
+        gathered_info
+    )
 
-Information gathered so far:
+    final_prompt = f"""
+You are an AI assistant analyzing a document uploaded by the user.
+
+Answer the user's question using ONLY the information contained
+in the uploaded document.
+
+Do not use the knowledge base.
+Do not invent information.
+Do not say that you lack access to the document if the document
+contains the answer.
+
+If the document does not contain the requested information,
+say clearly that the information is not present in the document.
+
+Give a direct, concise answer.
+
+USER QUESTION:
+{original_prompt}
+
+UPLOADED DOCUMENT:
 {context}
 
-Write the document content now. Reference the specific findings above — do not write a generic placeholder like "see attached". Plain text only, no JSON, no markdown headers, just the document body."""
+ANSWER:
+"""
 
-    if _ollama_client is not None and _ollama_client.is_available():
-        try:
-            result = _ollama_client.generate(model_name, synth_prompt)
-            return result["response"].strip()
-        except Exception as e:
-            print(f"[planner] Synthesis call failed ({e}), using gathered info directly")
+    try:
+        return _ask_llm(
+            final_prompt,
+            model_name,
+        )
 
-    # Fallback if Ollama unavailable: just dump what was gathered
-    return context
+    except Exception as e:
+        print(
+            f"[planner] File answer generation failed: {e}"
+        )
+
+        return (
+            "The document was successfully read, "
+            "but the local model failed to generate "
+            f"the answer: {e}"
+        )
 
 
-def _fix_code_with_error(broken_code: str, error_message: str, model_name: str) -> str:
-    """
-    If generated code fails to run, send the code + error back to the
-    model and ask for a corrected version. One retry only — if it still
-    fails after this, we give up and report the error.
-    """
-    fix_prompt = f"""The following Python code failed to run:
+def _create_plan(
+    prompt: str,
+    model_name: str,
+    active_files: list,
+) -> dict:
 
-```
+    if active_files:
+        files_description = "\n".join(
+            f"- {filename}"
+            for filename in active_files
+        )
+    else:
+        files_description = (
+            "No files are currently uploaded."
+        )
+
+    planner_prompt = f"""
+You are the planning component of a local AI workbench.
+
+Available tools:
+
+1. read_file(filepath)
+2. search_kb(query)
+3. generate_docx(content, filename)
+4. run_code_in_sandbox(code)
+
+Currently uploaded files:
+{files_description}
+
+Rules:
+
+- If an uploaded file exists and the user asks about it,
+  use read_file with the exact uploaded filename.
+- Never invent filenames.
+- If the user asks about an internal SOP/manual/knowledge base,
+  use search_kb with a valid query.
+- If the user explicitly asks to execute or test code,
+  use run_code_in_sandbox.
+- For ordinary questions, use no tools.
+- Keep the plan minimal.
+- Every tool argument must match the function signature exactly.
+
+Return ONLY valid JSON.
+
+Format:
+
+{{
+    "thought": "brief explanation",
+    "plan": [
+        {{
+            "tool": "tool_name",
+            "args": {{}}
+        }}
+    ]
+}}
+
+USER:
+{prompt}
+"""
+
+    raw_response = _ask_llm(
+        planner_prompt,
+        model_name,
+    )
+
+    return _extract_json(
+        raw_response
+    )
+
+
+def _fallback_plan(
+    prompt: str,
+    active_files: list,
+) -> dict:
+
+    if active_files:
+        return {
+            "thought": (
+                "Read the uploaded document."
+            ),
+            "plan": [
+                {
+                    "tool": "read_file",
+                    "args": {
+                        "filepath": filepath
+                    },
+                }
+                for filepath in active_files
+            ],
+        }
+
+    return {
+        "thought": "No tool required.",
+        "plan": [],
+    }
+
+
+def _get_plan(
+    prompt: str,
+    model_name: str,
+    active_files: list,
+) -> dict:
+
+    try:
+        return _create_plan(
+            prompt,
+            model_name,
+            active_files,
+        )
+
+    except Exception as e:
+
+        print(
+            f"[planner] LLM planning failed: {e}"
+        )
+
+        return _fallback_plan(
+            prompt,
+            active_files,
+        )
+
+
+def _synthesize_final_answer(
+    original_prompt: str,
+    gathered_info: list,
+    model_name: str,
+) -> str:
+
+    if not gathered_info:
+        return _ask_llm(
+            original_prompt,
+            model_name,
+        )
+
+    context = "\n\n".join(
+        gathered_info
+    )
+
+    final_prompt = f"""
+You are the final response component of an industrial AI workbench.
+
+Answer the user's request using the information gathered from
+the uploaded document or local tools.
+
+User request:
+{original_prompt}
+
+Information gathered:
+{context}
+
+Rules:
+
+- Answer the actual question directly.
+- Use the gathered information.
+- Do not invent facts.
+- Do not mention internal tool names.
+- If the information is insufficient, say so clearly.
+- Keep the answer concise and useful.
+"""
+
+    try:
+        return _ask_llm(
+            final_prompt,
+            model_name,
+        )
+
+    except Exception as e:
+
+        print(
+            f"[planner] Final synthesis failed: {e}"
+        )
+
+        return context
+
+
+def _fix_code_with_error(
+    broken_code: str,
+    error_message: str,
+    model_name: str,
+) -> str:
+
+    fix_prompt = f"""
+The following Python code failed during execution.
+
+CODE:
 {broken_code}
-```
 
-Error:
+ERROR:
 {error_message}
 
-Fix the code. Respond with ONLY the corrected Python code, no explanation, no markdown code fences."""
+Return ONLY corrected Python code.
+Do not use markdown.
+Do not explain anything.
+"""
 
-    if _ollama_client is not None and _ollama_client.is_available():
-        try:
-            result = _ollama_client.generate(model_name, fix_prompt)
-            fixed = result["response"].strip()
-            fixed = re.sub(r"^```(?:python)?", "", fixed)
-            fixed = re.sub(r"```$", "", fixed).strip()
-            return fixed
-        except Exception as e:
-            print(f"[planner] Code-fix call failed ({e})")
+    try:
 
-    return broken_code  # couldn't fix it, return original so it fails the same way
+        fixed = _ask_llm(
+            fix_prompt,
+            model_name,
+        )
+
+        fixed = re.sub(
+            r"^```(?:python)?",
+            "",
+            fixed,
+            flags=re.IGNORECASE,
+        )
+
+        fixed = re.sub(
+            r"```$",
+            "",
+            fixed,
+        ).strip()
+
+        return fixed
+
+    except Exception as e:
+
+        print(
+            f"[planner] Code fix failed: {e}"
+        )
+
+        return broken_code
 
 
-def run_agent(prompt: str, model_name: str, active_files: list) -> str:
-    """
-    The core agent execution loop.
+def run_agent(
+    prompt: str,
+    model_name: str,
+    active_files: list,
+) -> str:
 
-    Two-phase execution:
-      Phase A — run all "information gathering" steps (read_file, search_kb,
-                run_code_in_sandbox) in order, collecting their output.
-                run_code_in_sandbox gets one automatic retry if it fails,
-                using the error to ask the model for a fix.
-      Phase B — if the plan includes generate_docx, synthesize real content
-                from everything gathered in Phase A before writing the file.
-    """
-    print(f"--- Starting Agent Execution using {model_name} ---")
+    print(
+        f"--- Starting Agent Execution using {model_name} ---"
+    )
 
-    parsed = _get_plan(prompt, model_name, active_files)
-    thought = parsed.get("thought", "")
-    plan = parsed.get("plan", [])
+    # ============================================================
+    # IMPORTANT:
+    # Uploaded files bypass the LLM planner.
+    #
+    # This prevents the 8B model from randomly choosing
+    # search_kb, inventing filenames, or requesting invalid
+    # tool arguments.
+    # ============================================================
 
-    print(f"Thought: {thought}")
+    if active_files:
 
-    # Safety net: if the model invents a filename instead of using the one
-    # actually uploaded, auto-correct it. Only safe to do when there's
-    # exactly one uploaded file — with multiple files we can't guess which
-    # one was meant, so we leave those cases alone.
-    if len(active_files) == 1:
-        for step in plan:
-            if step.get("tool") == "read_file":
-                step_args = step.get("args", {})
-                given_path = step_args.get("filepath") or step_args.get("filename") or step_args.get("path")
-                if given_path != active_files[0]:
-                    print(f"  -> Correcting hallucinated filename '{given_path}' to '{active_files[0]}'")
-                    step["args"] = {"filepath": active_files[0]}
+        print(
+            f"Uploaded files detected: {active_files}"
+        )
 
-    # Guard: if no files were uploaded but the plan still tries to read one,
-    # fail clearly instead of letting it hit a generic "File not found".
-    if not active_files:
-        for step in plan:
-            if step.get("tool") == "read_file":
-                return (
-                    "I can't complete this task — it asks me to read a file, "
-                    "but no file was uploaded. Please upload the document you'd "
-                    "like me to analyze."
-                )
+        gathered_info = _read_uploaded_files(
+            active_files
+        )
+
+        if not gathered_info:
+            return (
+                "I could not extract readable text "
+                "from the uploaded document."
+            )
+
+        print(
+            "  -> Uploaded document read successfully."
+        )
+
+        return _synthesize_file_answer(
+            prompt,
+            gathered_info,
+            model_name,
+        )
+
+    # ============================================================
+    # NO FILE:
+    # Use the normal agent planner.
+    # ============================================================
+
+    parsed = _get_plan(
+        prompt,
+        model_name,
+        active_files,
+    )
+
+    thought = parsed.get(
+        "thought",
+        "",
+    )
+
+    plan = parsed.get(
+        "plan",
+        [],
+    )
+
+    print(
+        f"Thought: {thought}"
+    )
+
+    if not isinstance(plan, list):
+        return (
+            "The AI planner returned an invalid execution plan."
+        )
 
     gathered_info = []
     docx_step = None
-    outputs = []
 
-    # Phase A — execute every step except generate_docx, save that step for later
     for step in plan:
-        tool_name = step.get("tool")
-        args = _normalize_args(tool_name, step.get("args", {}))
+
+        if not isinstance(step, dict):
+            continue
+
+        tool_name = step.get(
+            "tool"
+        )
+
+        args = _normalize_args(
+            tool_name,
+            step.get("args", {}),
+        )
 
         if tool_name == "generate_docx":
-            docx_step = args  # handle after gathering is done
+
+            docx_step = args
             continue
 
-        tool_fn = TOOL_FUNCTIONS.get(tool_name)
-        if tool_fn is None:
-            print(f"  -> Unknown tool: {tool_name}, skipping")
+        if tool_name not in TOOL_FUNCTIONS:
+
+            print(
+                f"Unknown tool requested: {tool_name}"
+            )
+
             continue
+
+        tool_fn = TOOL_FUNCTIONS[
+            tool_name
+        ]
 
         try:
-            result = tool_fn(**args)
+
+            result = tool_fn(
+                **args
+            )
+
         except TypeError as e:
-            print(f"  -> Bad arguments for {tool_name}: {args} ({e})")
-            return f"Agent execution failed at step '{tool_name}': model passed unexpected arguments {args}"
 
-        # One retry for broken generated code
-        if tool_name == "run_code_in_sandbox" and isinstance(result, str) and "failed" in result.lower():
-            print(f"  -> {tool_name} failed, asking model to fix the code and retrying once...")
-            fixed_code = _fix_code_with_error(args.get("code", ""), result, model_name)
-            result = tool_fn(code=fixed_code)
-            args = {"code": fixed_code}
+            print(
+                f"Bad arguments for {tool_name}: "
+                f"{args} ({e})"
+            )
 
-        print(f"  -> {tool_name}({args}) => {result}")
-        outputs.append(result)
+            return (
+                f"Agent execution failed at step "
+                f"'{tool_name}': invalid arguments."
+            )
 
-        if isinstance(result, str) and result.lower().startswith(("error", "failed", "file not found")):
-            return f"Agent execution failed at step '{tool_name}': {result}"
+        except Exception as e:
 
-        gathered_info.append(f"[{tool_name}] {result}")
+            print(
+                f"Tool {tool_name} failed: {e}"
+            )
 
-    # Phase B — generate the document using everything gathered
-    if docx_step is not None:
-        filename = docx_step.get("filename", "output.docx")
-        real_content = _synthesize_document_content(prompt, gathered_info, model_name)
+            return (
+                f"Agent execution failed at step "
+                f"'{tool_name}': {e}"
+            )
 
-        result = generate_docx(content=real_content, filename=filename)
-        print(f"  -> generate_docx(content=<synthesized>, filename='{filename}') => {result}")
-        outputs.append(result)
+        print(
+            f"  -> {tool_name}({args}) => {result}"
+        )
 
-        if isinstance(result, str) and result.lower().startswith(("error", "failed")):
-            return f"Agent execution failed at step 'generate_docx': {result}"
+        if (
+            isinstance(result, str)
+            and result.lower().startswith(
+                (
+                    "error",
+                    "failed",
+                    "file not found",
+                )
+            )
+        ):
 
-    if not outputs and not docx_step:
-        return thought
+            if tool_name == "run_code_in_sandbox":
 
-    return "Agent execution completed. " + " | ".join(outputs) if outputs else "Agent execution completed."
+                print(
+                    "  -> Code execution failed. "
+                    "Asking the LLM to fix the code."
+                )
 
+                fixed_code = _fix_code_with_error(
+                    args.get("code", ""),
+                    result,
+                    model_name,
+                )
 
-if __name__ == "__main__":
-    with open("sample_report.txt", "w") as f:
-        f.write("Inspection Report\n\nFinding 1: Corrosion detected on line 12.\nFinding 2: Pressure gauge nominal.")
+                try:
 
-    print(run_agent("Analyze this inspection report and prepare an approval note.", "llama3.2", ["sample_report.txt"]))
-    print()
-    print(run_agent("Write a Python program and run it in the sandbox.", "llama3.2", []))
+                    result = tool_fn(
+                        code=fixed_code
+                    )
+
+                    print(
+                        f"  -> Retry result: {result}"
+                    )
+
+                except Exception as retry_error:
+
+                    return (
+                        "Agent execution failed during "
+                        f"code retry: {retry_error}"
+                    )
+
+            else:
+
+                return result
+
+        if isinstance(result, str):
+            gathered_info.append(
+                result
+            )
+
+    # ============================================================
+    # Generate document if requested.
+    # ============================================================
+
+    if docx_step:
+
+        content = docx_step.get(
+            "content",
+            "",
+        )
+
+        filename = docx_step.get(
+            "filename",
+            "Generated_Document.docx",
+        )
+
+        if not content and gathered_info:
+
+            content = "\n\n".join(
+                gathered_info
+            )
+
+        try:
+
+            docx_result = generate_docx(
+                content=content,
+                filename=filename,
+            )
+
+            gathered_info.append(
+                docx_result
+            )
+
+        except Exception as e:
+
+            return (
+                f"Document generation failed: {e}"
+            )
+
+    return _synthesize_final_answer(
+        prompt,
+        gathered_info,
+        model_name,
+    )
