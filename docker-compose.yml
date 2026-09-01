@@ -8,54 +8,83 @@
 version: '3.8'
 
 services:
-  # UI
   frontend:
     build: ./frontend
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     networks:
-      - secure-internal
+      - host-network
 
-  # API & Agent
   backend:
     build: ./backend
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8001:8000"
     networks:
+      - host-network
       - secure-internal
     depends_on:
       - ollama
 
-  # Local LLM Server
   ollama:
     image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
     networks:
       - secure-internal
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+      - ollama-download
 
-  # Code Execution Sandbox (Isolated)
   sandbox:
     build: ./sandbox
     networks:
-      secure-internal:
-        # Crucial for Person 6: Prevent this specific container from accessing external networks
-        # (The entire internal network should ideally be isolated as well)
-        aliases:
-          - sandbox
+      - secure-internal
+
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+          pids: 64
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+    cap_drop:
+      - ALL
+
+    security_opt:
+      - no-new-privileges:true
+
+    read_only: true
+
+    tmpfs:
+      - /tmp:size=64M,mode=1777,exec
+      - /home/sandboxuser/.cache:size=32M,mode=700
+
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    restart: unless-stopped
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   ollama_data:
 
 networks:
+  host-network:
+    driver: bridge
+
   secure-internal:
-    internal: true # This makes the network fully air-gapped!
+    driver: bridge
+    internal: true
+
+  ollama-download:
+    driver: bridge

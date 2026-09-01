@@ -7,3 +7,8 @@ __pycache__/
 
 # Local RAG database
 backend/rag_data/
+
+# Sandbox Python cache
+sandbox/__pycache__/
+# Local organization documents
+backend/organization_docs/*.pdf
